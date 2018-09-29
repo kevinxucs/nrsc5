@@ -340,7 +340,8 @@ int main(int argc, char *argv[])
         dev = SoapySDRDevice_makeStrArgs(soapy_args);
         if (dev == NULL) FATAL_EXIT("SoapySDRDevice_makeStrArgs error: %s", SoapySDRDevice_lastError());
 
-        if (antenna != NULL) {
+        if (antenna != NULL)
+        {
             err = SoapySDRDevice_setAntenna(dev, SOAPY_SDR_RX, 0, antenna);
             if (err) FATAL_EXIT("SoapySDRDevice_setAntenna error: %d", err);
         }
@@ -357,7 +358,9 @@ int main(int argc, char *argv[])
         if (gain == INT_MIN)
         {
 
-        } else {
+        }
+        else
+        {
             err = SoapySDRDevice_setGain(dev, SOAPY_SDR_RX, 0, gain);
             if (err) FATAL_EXIT("SoapySDRDevice_setGain error: %d", err);
         }
