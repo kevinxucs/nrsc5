@@ -3,6 +3,7 @@
 #cmakedefine USE_FAAD2
 #cmakedefine USE_COLOR
 #cmakedefine USE_THREADS
+#cmakedefine USE_SOAPYSDR
 
 #cmakedefine HAVE_PTHREAD_SETNAME_NP
 #cmakedefine HAVE_STRNDUP

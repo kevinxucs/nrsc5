@@ -9,6 +9,7 @@ option (USE_NEON "Use NEON instructions")
 option (USE_SSE "Use SSE3 instructions")
 option (USE_THREADS "Enable multithreading" ON)
 option (USE_FAAD2 "AAC decoding with FAAD2" ON)
+option (USE_SOAPYSDR "Enable SoapySDR support")
 
 find_program (AUTOCONF autoconf)
 if (NOT AUTOCONF)
@@ -32,6 +33,10 @@ endif()
 
 find_library (FFTW3F_LIBRARY fftw3f)
 find_library (RTL_SDR_LIBRARY rtlsdr)
+
+if (USE_SOAPYSDR)
+    find_library (SOAPYSDR_LIBRARY SoapySDR)
+endif()
 
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "arm.*")
     if (USE_NEON)

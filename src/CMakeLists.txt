@@ -41,6 +41,7 @@ target_link_libraries (
     ${AO_LIBRARY}
     ${FFTW3F_LIBRARY}
     ${RTL_SDR_LIBRARY}
+    ${SOAPYSDR_LIBRARY}
     m
 )
 install (

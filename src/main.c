@@ -29,6 +29,10 @@
 #include <pthread.h>
 #endif
 
+#ifdef USE_SOAPYSDR
+#include <SoapySDR/Device.h>
+#endif
+
 #include <rtl-sdr.h>
 
 #include "defines.h"
@@ -41,7 +45,7 @@ static int gain_list[128];
 static int gain_index, gain_count;
 
 // signal and noise are squared magnitudes
-static int snr_callback(void *arg, float snr)
+static int rtlsdr_snr_callback(void *arg, float snr)
 {
     static int best_gain;
     static float best_snr;
@@ -98,18 +102,27 @@ unsigned int parse_freq(char *s)
 
 static void help(const char *progname)
 {
-    fprintf(stderr, "Usage: %s [-v] [-q] [-l log-level] [-d device-index] [-g gain] [-p ppm-error] [-r samples-input] [-w samples-output] [-o audio-output -f adts|hdc|wav] [--dump-aas-files directory] frequency program\n", progname);
+    fprintf(stderr, "Usage: %s [-v] [-q] [-l log-level] [-d device-index] [-g gain] [-p ppm-error] [-r samples-input] "
+                    "[-w samples-output] [-o audio-output -f adts|hdc|wav] [--dump-aas-files directory] "
+#ifdef USE_SOAPYSDR
+                    "[--soapysdr device-argument] [-a antenna] "
+#endif
+                    "frequency program\n", progname);
 }
 
 int main(int argc, char *argv[])
 {
     static const struct option long_opts[] = {
         { "dump-aas-files", required_argument, NULL, 1 },
+#ifdef USE_SOAPYSDR
+        { "soapysdr", required_argument, NULL, 2 },
+#endif
         { 0 }
     };
-    int err, opt, gain = INT_MIN, ppm_error = 0;
+    int err, opt, gain = INT_MIN, ppm_error = 0, soapy = 0;
     unsigned int count, i, frequency = 0, program = 0, device_index = 0;
-    char *input_name = NULL, *output_name = NULL, *audio_name = NULL, *format_name = NULL, *files_path = NULL;
+    char *input_name = NULL, *output_name = NULL, *audio_name = NULL, *format_name = NULL,
+         *files_path = NULL, *soapy_args = NULL, *antenna = NULL;
     FILE *infp = NULL, *outfp = NULL;
     input_t input;
     output_t output;
@@ -121,6 +134,15 @@ int main(int argc, char *argv[])
         case 1:
             files_path = optarg;
             break;
+#ifdef USE_SOAPYSDR
+        case 2:
+            soapy = 1;
+            soapy_args = optarg;
+            break;
+        case 'a':
+            antenna = optarg;
+            break;
+#endif
         case 'r':
             input_name = optarg;
             break;
@@ -174,21 +196,55 @@ int main(int argc, char *argv[])
         frequency = parse_freq(argv[optind]);
         program = strtoul(argv[optind+1], NULL, 0);
 
-        count = rtlsdr_get_device_count();
-        if (count == 0)
+        if (!soapy)
         {
-            log_fatal("No devices found!");
-            return 1;
+            count = rtlsdr_get_device_count();
+            if (count == 0)
+            {
+                log_fatal("No devices found!");
+                return 1;
+            }
+
+            for (i = 0; i < count; ++i)
+                log_info("[%d] %s", i, rtlsdr_get_device_name(i));
+
+            if (device_index >= count)
+            {
+                log_fatal("Selected device does not exist.");
+                return 1;
+            }
         }
-
-        for (i = 0; i < count; ++i)
-            log_info("[%d] %s", i, rtlsdr_get_device_name(i));
-
-        if (device_index >= count)
+#ifdef USE_SOAPYSDR
+        else
         {
-            log_fatal("Selected device does not exist.");
-            return 1;
+            SoapySDRKwargs *devices = SoapySDRDevice_enumerateStrArgs(soapy_args, &count);
+            char *label;
+
+            if (count == 0)
+            {
+                log_fatal("No SoapySDR devices found!");
+                return 1;
+            }
+
+            for (i = 0; i < count; i++) {
+                label = NULL;
+                for (int j = 0; j < devices[i].size; j++) {
+                    if (!strncmp(devices[i].keys[j], "label", 5)) {
+                        label = devices[i].vals[j];
+                        break;
+                    }
+                }
+                log_info("[%d] %s", i, label);
+            }
+
+            if (count != 1) {
+                log_fatal("More than one SoapySDR device found!");
+                return 1;
+            }
+
+            SoapySDRKwargsList_clear(devices, count);
         }
+#endif
     }
     else
     {
@@ -276,6 +332,40 @@ int main(int argc, char *argv[])
                 input_cb(tmp, cnt * 4, &input);
         }
     }
+#ifdef USE_SOAPYSDR
+    else if (soapy)
+    {
+        SoapySDRDevice *dev;
+
+        dev = SoapySDRDevice_makeStrArgs(soapy_args);
+        if (dev == NULL) FATAL_EXIT("SoapySDRDevice_makeStrArgs error: %s", SoapySDRDevice_lastError());
+
+        if (antenna != NULL) {
+            err = SoapySDRDevice_setAntenna(dev, SOAPY_SDR_RX, 0, antenna);
+            if (err) FATAL_EXIT("SoapySDRDevice_setAntenna error: %d", err);
+        }
+
+        err = SoapySDRDevice_setSampleRate(dev, SOAPY_SDR_RX, 0, 1488375.0);
+        if (err) FATAL_EXIT("SoapySDRDevice_setSampleRate error: %d", err);
+        err = SoapySDRDevice_setGainMode(dev, SOAPY_SDR_RX, 0, 1);
+        if (err) FATAL_EXIT("SoapySDRDevice_setGainMode error: %d", err);
+        err = SoapySDRDevice_setFrequencyCorrection(dev, SOAPY_SDR_RX, 0, ppm_error);
+        if (err) FATAL_EXIT("SoapySDRDevice_setFrequencyCorrection error: %d", err);
+        err = SoapySDRDevice_setFrequency(dev, SOAPY_SDR_RX, 0, frequency, NULL);
+        if (err) FATAL_EXIT("SoapySDRDevice_setFrequency error: %d", err);
+
+        if (gain == INT_MIN)
+        {
+
+        } else {
+            err = SoapySDRDevice_setGain(dev, SOAPY_SDR_RX, 0, gain);
+            if (err) FATAL_EXIT("SoapySDRDevice_setGain error: %d", err);
+        }
+
+        err = SoapySDRDevice_unmake(dev);
+        if (err) FATAL_EXIT("SoapySDRDevice_unmake error: %d", err);
+    }
+#endif
     else
     {
         uint8_t *buf = malloc(128 * SNR_FFT_COUNT);
@@ -297,7 +387,7 @@ int main(int argc, char *argv[])
             gain_count = rtlsdr_get_tuner_gains(dev, gain_list);
             if (gain_count > 0)
             {
-                input_set_snr_callback(&input, snr_callback, dev);
+                input_set_snr_callback(&input, rtlsdr_snr_callback, dev);
                 err = rtlsdr_set_tuner_gain(dev, gain_list[0]);
                 if (err) FATAL_EXIT("rtlsdr_set_tuner_gain error: %d", err);
             }
