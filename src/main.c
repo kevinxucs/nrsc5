@@ -338,10 +338,7 @@ int main(int argc, char *argv[])
     else if (soapy)
     {
         SoapySDRDevice *dev;
-        complex int16_t buf[1024];
-        void *bufs[] = {buf};
-        int len, flags;
-        long long time_ns;
+        float complex buf[1024];
 
         dev = SoapySDRDevice_makeStrArgs(soapy_args);
         if (dev == NULL) FATAL_EXIT("SoapySDRDevice_makeStrArgs error: %s", SoapySDRDevice_lastError());
@@ -368,12 +365,23 @@ int main(int argc, char *argv[])
         }
 
         SoapySDRStream *stream;
-        err = SoapySDRDevice_setupStream(dev, &stream, SOAPY_SDR_RX, SOAPY_SDR_CS16, NULL, 0, NULL);
+        err = SoapySDRDevice_setupStream(dev, &stream, SOAPY_SDR_RX, SOAPY_SDR_CF32, NULL, 0, NULL);
         if (err) FATAL_EXIT("SoapySDRDevice_setupStream error: %s", SoapySDRDevice_lastError());
         err = SoapySDRDevice_activateStream(dev, stream, 0, 0, 0);
         if (err) FATAL_EXIT("SoapySDRDevice_activateStream error: %s", SoapySDRDevice_lastError());
 
-        while ((len = SoapySDRDevice_readStream(dev, stream, bufs, 1024, &flags, &time_ns, 100000)) >= 0) {
+        while (true)
+        {
+            void *bufs[] = {buf};
+            int len, flags;
+            long long time_ns;
+            len = SoapySDRDevice_readStream(dev, stream, bufs, 1024, &flags, &time_ns, 100000);
+
+            if (len <= 0) {
+                log_fatal("SoapySDRDevice_readStream error: %s", SoapySDRDevice_lastError());
+                break;
+            }
+
             input_soapy_cb(buf, len, &input);
         }
 

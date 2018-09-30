@@ -169,7 +169,7 @@ void input_cb(uint8_t *buf, uint32_t len, void *arg)
 }
 
 #ifdef USE_SOAPYSDR
-void input_soapy_cb(cint16_t *buf, int len, input_t *st)
+void input_soapy_cb(float complex *buf, int len, input_t *st)
 {
     unsigned int i, new_avail, cnt = len / 2;
 
@@ -209,8 +209,10 @@ void input_soapy_cb(cint16_t *buf, int len, input_t *st)
     {
         cint16_t x[2];
 
-        x[0] = buf[i * 2 + 0];
-        x[1] = buf[i * 2 + 1];
+        x[0].r = F_Q15(crealf(buf[i * 2 + 0]));
+        x[0].i = F_Q15(cimagf(buf[i * 2 + 0]));
+        x[1].r = F_Q15(crealf(buf[i * 2 + 1]));
+        x[1].i = F_Q15(cimagf(buf[i * 2 + 1]));
 
         halfband_q15_execute(st->decim, x, &st->buffer[new_avail++]);
     }

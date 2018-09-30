@@ -41,6 +41,7 @@
 
 #define U8_F(x) ( (((float)(x)) - 127) / 128 )
 #define U8_Q15(x) ( ((int16_t)(x) - 127) << 6 )
+#define F_Q15(x) ( (int16_t)((x) * pow(2, 15)) )
 
 typedef struct {
     int16_t r, i;
