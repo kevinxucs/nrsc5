@@ -106,7 +106,7 @@ static void help(const char *progname)
     fprintf(stderr, "Usage: %s [-v] [-q] [-l log-level] [-d device-index] [-g gain] [-p ppm-error] [-r samples-input] "
                     "[-w samples-output] [-o audio-output -f adts|hdc|wav] [--dump-aas-files directory] "
 #ifdef USE_SOAPYSDR
-                    "[--soapysdr device-argument] [-a antenna] "
+                    "[--soapy device-argument] [-a antenna] "
 #endif
                     "frequency program\n", progname);
 }
@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
     static const struct option long_opts[] = {
         { "dump-aas-files", required_argument, NULL, 1 },
 #ifdef USE_SOAPYSDR
-        { "soapysdr", required_argument, NULL, 2 },
+        { "soapy", required_argument, NULL, 2 },
         { "antenna", required_argument, NULL, 'a' },
 #endif
         { 0 }
