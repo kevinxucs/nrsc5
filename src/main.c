@@ -339,6 +339,9 @@ int main(int argc, char *argv[])
     {
         SoapySDRDevice *dev;
         float complex buf[1024];
+        void *bufs[] = {buf};
+        int len, flags;
+        long long time_ns;
 
         dev = SoapySDRDevice_makeStrArgs(soapy_args);
         if (dev == NULL) FATAL_EXIT("SoapySDRDevice_makeStrArgs error: %s", SoapySDRDevice_lastError());
@@ -372,10 +375,8 @@ int main(int argc, char *argv[])
 
         while (true)
         {
-            void *bufs[] = {buf};
-            int len, flags;
-            long long time_ns;
             len = SoapySDRDevice_readStream(dev, stream, bufs, 1024, &flags, &time_ns, 100000);
+            //printf("ret=%d, flags=%d, timeNs=%lld\n", len, flags, time_ns);
 
             if (len <= 0) {
                 log_fatal("SoapySDRDevice_readStream error: %s", SoapySDRDevice_lastError());

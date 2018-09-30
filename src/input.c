@@ -157,6 +157,8 @@ void input_cb(uint8_t *buf, uint32_t len, void *arg)
         x[1].r = U8_Q15(buf[i * 4 + 2]);
         x[1].i = -U8_Q15(buf[i * 4 + 3]);
 
+        //printf("[%d, %d], [%d, %d]\n", x[0].r, x[0].i, x[1].r, x[1].i);
+
         halfband_q15_execute(st->decim, x, &st->buffer[new_avail++]);
     }
 
@@ -213,6 +215,8 @@ void input_soapy_cb(float complex *buf, int len, input_t *st)
         x[0].i = F_Q15(cimagf(buf[i * 2 + 0]));
         x[1].r = F_Q15(crealf(buf[i * 2 + 1]));
         x[1].i = F_Q15(cimagf(buf[i * 2 + 1]));
+
+        //printf("[%d, %d], [%d, %d]\n", x[0].r, x[0].i, x[1].r, x[1].i);
 
         halfband_q15_execute(st->decim, x, &st->buffer[new_avail++]);
     }
