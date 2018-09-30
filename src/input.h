@@ -44,3 +44,6 @@ void input_set_snr_callback(input_t *st, input_snr_cb_t cb, void *);
 void input_set_skip(input_t *st, unsigned int skip);
 void input_pdu_push(input_t *st, uint8_t *pdu, unsigned int len, unsigned int program);
 void input_aas_push(input_t *st, uint8_t *psd, unsigned int len);
+#ifdef USE_SOAPYSDR
+void input_soapy_cb(cint16_t *buf, int len, input_t *st);
+#endif

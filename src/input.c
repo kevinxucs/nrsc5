@@ -168,6 +168,62 @@ void input_cb(uint8_t *buf, uint32_t len, void *arg)
     }
 }
 
+#ifdef USE_SOAPYSDR
+void input_soapy_cb(cint16_t *buf, int len, input_t *st)
+{
+    unsigned int i, new_avail, cnt = len / 2;
+
+    //if (st->snr_cb)
+    //{
+    //    measure_snr(st, buf, len);
+    //    return;
+    //}
+
+    //if (st->outfp)
+    //    fwrite(buf, 1, len, st->outfp);
+
+    if (cnt + st->avail > INPUT_BUF_LEN)
+    {
+        if (st->avail > st->used)
+        {
+            memmove(&st->buffer[0], &st->buffer[st->used], (st->avail - st->used) * sizeof(st->buffer[0]));
+            st->avail -= st->used;
+            st->used = 0;
+        }
+        else
+        {
+            st->avail = 0;
+            st->used = 0;
+        }
+    }
+    new_avail = st->avail;
+
+    if (cnt + new_avail > INPUT_BUF_LEN)
+    {
+        log_error("input buffer overflow!");
+        return;
+    }
+    //assert(len % 2 == 0);
+
+    for (i = 0; i < cnt; i++)
+    {
+        cint16_t x[2];
+
+        x[0] = buf[i * 2 + 0];
+        x[1] = buf[i * 2 + 1];
+
+        halfband_q15_execute(st->decim, x, &st->buffer[new_avail++]);
+    }
+
+    st->avail = new_avail;
+    while (st->avail - st->used >= FFTCP)
+    {
+        input_push_to_acquire(st);
+        acquire_process(&st->acq);
+    }
+}
+#endif
+
 void input_set_snr_callback(input_t *st, input_snr_cb_t cb, void *arg)
 {
     st->snr_cb = cb;

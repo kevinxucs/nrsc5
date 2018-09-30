@@ -31,6 +31,7 @@
 
 #ifdef USE_SOAPYSDR
 #include <SoapySDR/Device.h>
+#include <SoapySDR/Formats.h>
 #endif
 
 #include <rtl-sdr.h>
@@ -116,6 +117,7 @@ int main(int argc, char *argv[])
         { "dump-aas-files", required_argument, NULL, 1 },
 #ifdef USE_SOAPYSDR
         { "soapysdr", required_argument, NULL, 2 },
+        { "antenna", required_argument, NULL, 'a' },
 #endif
         { 0 }
     };
@@ -336,6 +338,10 @@ int main(int argc, char *argv[])
     else if (soapy)
     {
         SoapySDRDevice *dev;
+        complex int16_t buf[1024];
+        void *bufs[] = {buf};
+        int len, flags;
+        long long time_ns;
 
         dev = SoapySDRDevice_makeStrArgs(soapy_args);
         if (dev == NULL) FATAL_EXIT("SoapySDRDevice_makeStrArgs error: %s", SoapySDRDevice_lastError());
@@ -343,30 +349,42 @@ int main(int argc, char *argv[])
         if (antenna != NULL)
         {
             err = SoapySDRDevice_setAntenna(dev, SOAPY_SDR_RX, 0, antenna);
-            if (err) FATAL_EXIT("SoapySDRDevice_setAntenna error: %d", err);
+            if (err) FATAL_EXIT("SoapySDRDevice_setAntenna error: %s", SoapySDRDevice_lastError());
         }
 
         err = SoapySDRDevice_setSampleRate(dev, SOAPY_SDR_RX, 0, 1488375.0);
-        if (err) FATAL_EXIT("SoapySDRDevice_setSampleRate error: %d", err);
+        if (err) FATAL_EXIT("SoapySDRDevice_setSampleRate error: %s", SoapySDRDevice_lastError());
         err = SoapySDRDevice_setGainMode(dev, SOAPY_SDR_RX, 0, 1);
-        if (err) FATAL_EXIT("SoapySDRDevice_setGainMode error: %d", err);
+        if (err) FATAL_EXIT("SoapySDRDevice_setGainMode error: %s", SoapySDRDevice_lastError());
         err = SoapySDRDevice_setFrequencyCorrection(dev, SOAPY_SDR_RX, 0, ppm_error);
-        if (err) FATAL_EXIT("SoapySDRDevice_setFrequencyCorrection error: %d", err);
+        if (err) FATAL_EXIT("SoapySDRDevice_setFrequencyCorrection error: %s", SoapySDRDevice_lastError());
         err = SoapySDRDevice_setFrequency(dev, SOAPY_SDR_RX, 0, frequency, NULL);
-        if (err) FATAL_EXIT("SoapySDRDevice_setFrequency error: %d", err);
+        if (err) FATAL_EXIT("SoapySDRDevice_setFrequency error: %s", SoapySDRDevice_lastError());
 
-        if (gain == INT_MIN)
-        {
-
-        }
-        else
+        if (gain != INT_MIN)
         {
             err = SoapySDRDevice_setGain(dev, SOAPY_SDR_RX, 0, gain);
-            if (err) FATAL_EXIT("SoapySDRDevice_setGain error: %d", err);
+            if (err) FATAL_EXIT("SoapySDRDevice_setGain error: %s", SoapySDRDevice_lastError());
         }
 
+        SoapySDRStream *stream;
+        err = SoapySDRDevice_setupStream(dev, &stream, SOAPY_SDR_RX, SOAPY_SDR_CS16, NULL, 0, NULL);
+        if (err) FATAL_EXIT("SoapySDRDevice_setupStream error: %s", SoapySDRDevice_lastError());
+        err = SoapySDRDevice_activateStream(dev, stream, 0, 0, 0);
+        if (err) FATAL_EXIT("SoapySDRDevice_activateStream error: %s", SoapySDRDevice_lastError());
+
+        while ((len = SoapySDRDevice_readStream(dev, stream, bufs, 1024, &flags, &time_ns, 100000)) >= 0) {
+            input_soapy_cb(buf, len, &input);
+        }
+
+        log_fatal("SoapySDRDevice_readStream error: %s", SoapySDRDevice_lastError());
+
+        err = SoapySDRDevice_deactivateStream(dev, stream, 0, 0);
+        if (err) FATAL_EXIT("SoapySDRDevice_deactivateStream error: %s", SoapySDRDevice_lastError());
+        err = SoapySDRDevice_closeStream(dev, stream);
+        if (err) FATAL_EXIT("SoapySDRDevice_closeStream error: %s", SoapySDRDevice_lastError());
         err = SoapySDRDevice_unmake(dev);
-        if (err) FATAL_EXIT("SoapySDRDevice_unmake error: %d", err);
+        if (err) FATAL_EXIT("SoapySDRDevice_unmake error: %s", SoapySDRDevice_lastError());
     }
 #endif
     else
