@@ -163,13 +163,13 @@ void input_cb(uint8_t *buf, uint32_t len, void *arg)
     }
 
     st->avail = new_avail;
-    printf("before: avail: %d, used: %d\n", st->avail, st->used);
+    //printf("before: avail: %d, used: %d\n", st->avail, st->used);
     while (st->avail - st->used >= FFTCP)
     {
         input_push_to_acquire(st);
         acquire_process(&st->acq);
     }
-    printf("after: avail: %d, used: %d\n", st->avail, st->used);
+    //printf("after: avail: %d, used: %d\n", st->avail, st->used);
 }
 
 #ifdef USE_SOAPYSDR
@@ -218,19 +218,19 @@ void input_soapy_cb(float complex *buf, int len, input_t *st)
         x[1].r = F_Q15(crealf(buf[i * 2 + 1]));
         x[1].i = F_Q15(cimagf(buf[i * 2 + 1]));
 
-        printf("[%d, %d], [%d, %d]\n", x[0].r, x[0].i, x[1].r, x[1].i);
+        //printf("[%d, %d], [%d, %d]\n", x[0].r, x[0].i, x[1].r, x[1].i);
 
         halfband_q15_execute(st->decim, x, &st->buffer[new_avail++]);
     }
 
     st->avail = new_avail;
-    printf("before: avail: %d, used: %d\n", st->avail, st->used);
+    //printf("before: avail: %d, used: %d\n", st->avail, st->used);
     while (st->avail - st->used >= FFTCP)
     {
         input_push_to_acquire(st);
         acquire_process(&st->acq);
     }
-    printf("after: avail: %d, used: %d\n", st->avail, st->used);
+    //printf("after: avail: %d, used: %d\n", st->avail, st->used);
 }
 #endif
 
